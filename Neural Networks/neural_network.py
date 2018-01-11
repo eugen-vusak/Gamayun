@@ -1,105 +1,19 @@
-'''
 import numpy as np
+import ActivationFunctions
+from data import Data
+from layers import Layer, InputLayer
+import matplotlib.pyplot as plt
+import pickle
 
-class Layer:
-
-	A = None
-	Z = None
-
-
-	def __init__(self, size):
-		self.size = size
-
-	def output(self):
-		self.Z = sigmoid(self.A)
-		return self.Z
-
-	@staticmethod
-	def sigmoid(matrix):
-		return 1/1+np.exp(-matrix)
-
-class NeuralNetwork:
-
-	def __init__(self, layers):
-		self.layers = layers[1:]
-		self.weights = []
-
-		for i in range(len(layers)-1):
-			self.weights.append(2*np.random.random((layers[i].size, layers[i+1].size))-1)
-
-
-
-	def feedfarward(self, input):
-		if not input.size() == self.layers[0].size:
-			#error
-			return
-		layers[0].A = input
-
-		for i in range(1,len(layers)):
-			layers[i].Z = np.dot(layers[i-1].A, weights[i-1])
-			layers[i].output()
-
-
-
-
-	Z - input (1 x n)
-	A - output (1 x n)
-	W - weights (n x n+1)
-
-	A^0 = X
-
-	Z^l = A^l-1 * W^l + B^l
-
-	A^l = sigmoid(Z^l)
-
-2. backprop
-	E^L = A^L - Y
-	
-	D^l = E^l dot sigmoid'(Z^l)
-
-	E^l = D^l+1 * trnas(W^l+1)
-
-	parcC/parcW^l = trans(A^l-1) * D^l
-
-'''
-
-import numpy as np
-
-def sigmoid(x, deriv = False):
-	return 1/(1+np.exp(-0.2*x))
-
-	
-
-class Layer:
-
-	output = None
-
-	def __init__(self, input_size, output_size, function):
-		self.input_size = input_size
-		self.output_size = output_size
-
-		self.function = function
-
-		self.weights = np.random.random((output_size, input_size))
-		self.biases = np.random.random((input_size,1))
-
-	def output(self, input):
-
-		if(self.input_size == 0):
-			output = input
-			return output
-
-		output = self.function(np.dot(self.weights, input))
-		return output
-	
-	def __repr__(self):
-		return str(self.weights)
-
+def predprocess(layer):
+	return layer.Z/4
 
 class FeedForwardNeuralNetwork:
 
 	def __init__(self, layers = []):
 		self.layers = layers
+		self.ErrorAxis = []
+		self.E = 0
 
 	def addLayer(self, layer):
 		self.layers.append(layer)
@@ -108,30 +22,87 @@ class FeedForwardNeuralNetwork:
 		self.pop(index)
 
 	def feedforward(self, input):
-
 		for layer in self.layers:
 			input = layer.output(input)
-
 		return input
 
-	def train(self, data, desired_output, batch_size = 10, epoch = 200):
+	def backpropagate(self,output, desired_output):
 
-		miniBatch = data.getNextMiniBatch(batch_size)
+		#calculate for the last layer first
+		output_layer = self.layers[-1]
+		output_layer.error = output - desired_output
 
 
-		for data in miniBatch:
-			output = self.feedforward(data)
+		self.E += (output_layer.error**2 / 2).sum()
+
+		deriv = np.multiply(output_layer.A, 1-output_layer.A)
+
+		output_layer.delta = np.multiply(output_layer.error, deriv)
+
+		#from penultimate layer to second layer
+		for l in reversed(range(1,len(self.layers)-1)):
+
+				layer = self.layers[l]
 			
-			outputLayer = True
-			for layer in reversed(self.layers):
+				layer_plus_one = self.layers[l+1]
+				layer.error = np.dot(layer_plus_one.weights.T,layer_plus_one.delta)
+				
+				
+				deriv = layer.function(layer, deriv = True)
 
-				if outputLayer:
-					error = output - desired_output
-					outputLayer = False
-				else:
-					pass
+				layer.delta = np.multiply(layer.error, deriv)
 
+	def gradientDescent(self):
+		
+		for l in range(1,len(self.layers)):
 
+			layer = self.layers[l]
+			layer_minus_one = self.layers[l-1]
+
+			layer.pC_pW += np.dot(layer.delta, layer_minus_one.A.T)
+			layer.pC_pB += layer.delta
+
+			#layer.weights = layer.weights - self.learning_rate * layer.pC_pW
+			#layer.biases = layer.biases - self.learning_rate * layer.pC_pB
+
+	def train(self, training_data, batch_size = 32, epochs = 200, learning_rate = 0.5):
+
+		iter_num = 0
+		for i in range(epochs):
+			#print(i)
+
+			training_data.resetToBegining()
+			miniBatch = training_data.getNextMiniBatch(batch_size)
+
+			while(miniBatch):
+
+				for data in miniBatch:
+
+					input, desired_output = data
+					#1. FeedForwardNeuralNetwork
+					output = self.feedforward(input)
+					print("num of iterations", iter_num)
+					iter_num += 1
+					#2. backpropagation
+					self.backpropagate(output, desired_output)
+					#3. gradientDescent
+					self.gradientDescent()
+
+				#update parametars for each layer
+				#after every mini batch 
+				for layer in self.layers:
+					if type(layer) is InputLayer:
+						continue
+					layer.updateParametars(batch_size, learning_rate)
+
+				miniBatch = training_data.getNextMiniBatch(batch_size)
+				self.ErrorAxis.append(self.E/batch_size)
+				self.E = 0
+					
+	def plotCostFunction(self):
+		plt.plot([x for x in range(len(self.ErrorAxis))], self.ErrorAxis)
+		plt.show()
+		
 	def __str__(self):
 		string = ""
 		first = True
@@ -144,57 +115,68 @@ class FeedForwardNeuralNetwork:
 
 		return string
 
-class Data:
+########################################### main #######################################
 
-	data_set = []
-	index = 0
+def saveToFile(o, file):
+	with open(file, "wb") as output_file:
+		pickle.dump(o, output_file, pickle.HIGHEST_PROTOCOL)
 
-	def __init__(self, csv_file):
-		with open(csv_file, "r") as file:
-			for line in file:
-				self.data_set.append(np.array(line.strip().split(",")).astype(np.float))
+def loadFromFile(file):
+	with open(file, "rb") as input_file:
+		return pickle.load(input_file)
 
-	def __str__(self):
-		string = ""
-		first = True
-		for data in self.data_set:
-			if first:
-				string += str(data.tolist())
-				first = False
-			else:
-				string += "\n" + str(data.tolist())
-		return string
-
-	def getNextMiniBatch(self, batch_size):
-		if self.index + batch_size >= len(self.data_set):
-			return self.data_set[self.index:]
-		return self.data_set[self.index:self.index+batch_size]
-
-
-	def shuffle(self):
-		np.random.shuffle(self.data_set)
-
-
-np.random.seed(1)
-
-def linear(x):
-	return x
-
-input_layer = Layer(0,4,linear)
-hidden_layer = Layer(4,13, sigmoid)
-output_layer = Layer(13,2,sigmoid)
-
+np.random.seed()
 '''
-input = np.array([	[1],
-					[3],
-					[1],
-					[3]])
-'''
+input_layer = InputLayer(2, ActivationFunctions.linear, "L1")
+
+hidden_layer = Layer(2,2,ActivationFunctions.sigmoid, "L2")
+hidden_layer.weights = np.array([	[0.15, 0.20],
+									[0.25, 0.30]])
+
+hidden_layer.biases = np.array([	[0.35],
+									[0.35]])
+
+output_layer = Layer(2,2,ActivationFunctions.sigmoid, "L3")
+output_layer.weights = np.array([	[0.40,0.45],
+									[0.50,0.55]])
+
+output_layer.biases = np.array([	[0.60],
+									[0.60]])
 
 nn = FeedForwardNeuralNetwork([input_layer, hidden_layer, output_layer])
-
 print(nn)
+#data = Data("../Data/test.csv", 2,2)
+data = Data("../Data/shuffled_data.csv",100,4)
+#print(data)
 
-data = Data("test.csv")
 
-nn.train(data, np.array([0,1]))
+l1 = InputLayer(100, predprocess, "L1")
+l2 = Layer(100,10,ActivationFunctions.sigmoid, "L2")
+l3 = Layer(10,5, ActivationFunctions.sigmoid, "L3")
+l4 = Layer(5,4, ActivationFunctions.sigmoid, "L4")
+
+nn = FeedForwardNeuralNetwork([l1,l2,l3,l4])
+
+nn.train(data, batch_size = 1, epochs = 150, learning_rate = 5)
+
+#saveToFile(nn, ".neuralnetwork.pkl")
+
+nn = loadFromFile(".neuralnetwork.pkl")
+
+#print(nn.ErrorAxis[-1])
+
+#nn.plotCostFunction()
+
+testing_data = Data("../Data/testing_data.csv", 100, 4)
+
+total_tests = 0
+correct_tests = 0
+for data in testing_data.data_set:
+	input, desired_output = data
+	total_tests += 1
+	if np.sum(np.around(nn.feedforward(input)) - desired_output) == 0: 
+		correct_tests += 1
+
+print(correct_tests/total_tests * 100, "% tocnih primjera")
+
+'''
