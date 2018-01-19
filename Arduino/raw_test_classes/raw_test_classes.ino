@@ -7,13 +7,14 @@ MPU_6050 mpu(MPU_addr);
 
 void setup() {
   mpu.wakeUp();
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   Data data1 = mpu.measure();
   Data data2 = mpu.measure();
   Data data3 = data1.add(data2);
 
   data1.print();
+  Serial.println(data1.toString());
   data2.print();
   data3.print();
   data3 = data3.div(2);
@@ -24,4 +25,5 @@ void setup() {
 }
 
 void loop() {
+  
 }

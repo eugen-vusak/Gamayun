@@ -9,7 +9,7 @@ Data stableStateData(0,0,0,0,0,0);
 
 void setup() {
   mpu.wakeUp();
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   Serial.println("Setup started");
   
@@ -28,6 +28,8 @@ void setup() {
 
 void loop() {
   Data data = mpu.measure();
-  data.sub(stableStateData).print();
+  //Serial.println(data.sub(stableStateData).toString());
   delay(8);
 }
+
+

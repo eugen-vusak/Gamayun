@@ -9,6 +9,7 @@ class Data
 	public:
 		Data(long ax, long ay, long az, long gx, long gy, long gz);
 		void print();
+		String str();
 		Data add(Data other);
 		Data sub(Data other);
 		Data div(float c);

@@ -21,6 +21,10 @@ void Data::print()
     Serial.print(" | gz = "); Serial.println(_gz);
 }
 
+String Data::str(){
+	return _ax+","+_ay+","+_az+","+_gx+","+_gy+","+_gz;
+}
+
 Data Data::add(Data other){
 	Data data(
 		_ax + other._ax,
