@@ -57,4 +57,3 @@ Data getStableStateData(int n) {
   }
   return stableStateData.div(n);
 }
-
