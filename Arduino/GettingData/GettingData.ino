@@ -3,10 +3,9 @@
 
 #define N 150
 #define GESTURE_TIME 500
+#define BUFFER_SIZE 100
 
 int SPACE = ' ';
-int ledPin = LED_BUILTIN;
-int ledState = LOW;
 int i = 0;
 
 const int MPU_addr = 0x68; // I2C address of the MPU-6050
@@ -17,8 +16,6 @@ MPU_6050 mpu(MPU_addr);
 
 void setup() {
   Serial.begin(115200);
-
-  pinMode(ledPin, OUTPUT);
 }
 void loop() {
 
@@ -32,7 +29,7 @@ void loop() {
     else if (val == 'r') {
       Serial.println("Setup started");
       stableStateData = getStableStateData(N);
-      Serial.println("Setup Ended");
+      Serial.println("Setup ended");
     }
     else{
       Serial.println(val);
@@ -40,15 +37,11 @@ void loop() {
   }
 }
 
-void toggleLED() {
-  ledState = !ledState;
-  digitalWrite(ledPin, ledState);
-}
-
 String measureGesture() {
-  unsigned long startTime = millis();
   String s = "";
-  while (millis() - startTime < GESTURE_TIME) {
+
+  int i = 0;
+  while (i > BUFFER_SIZE) {
     data = mpu.measure().sub(stableStateData);
     delay(8);
     s += data.toString() + ",";
