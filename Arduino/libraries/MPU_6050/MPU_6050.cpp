@@ -1,7 +1,12 @@
 #include "Arduino.h"
 #include "MPU_6050.h"
 
-Data::Data(long ax, long ay, long az, long gx, long gy, long gz)
+Data::Data()
+{
+	
+}
+
+Data::Data(double ax, double ay, double az, double gx, double gy, double gz)
 {
   _ax = ax;
   _ay = ay;
@@ -21,8 +26,13 @@ void Data::print()
     Serial.print(" | gz = "); Serial.println(_gz);
 }
 
-String Data::str(){
-	return _ax+","+_ay+","+_az+","+_gx+","+_gy+","+_gz;
+String Data::toString(){
+	return String(_ax)+","+
+	String(_ay)+","+
+	String(_az)+","+
+	String(_gx)+","+
+	String(_gy)+","+
+	String(_gz);
 }
 
 Data Data::add(Data other){
@@ -37,7 +47,7 @@ Data Data::add(Data other){
 	return data;
 }
 
-Data Data::div(float c)
+Data Data::div(double c)
 {
 	Data data(
 		_ax / c,

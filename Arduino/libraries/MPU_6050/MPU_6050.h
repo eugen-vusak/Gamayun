@@ -7,19 +7,20 @@
 class Data
 {
 	public:
-		Data(long ax, long ay, long az, long gx, long gy, long gz);
+		Data();
+		Data(double ax, double ay, double az, double gx, double gy, double gz);
 		void print();
-		String str();
+		String toString();
 		Data add(Data other);
 		Data sub(Data other);
-		Data div(float c);
+		Data div(double c);
 	private:
-		long _ax;
-		long _ay;
-		long _az;
-		long _gx;
-		long _gy;
-		long _gz;
+		double _ax;
+		double _ay;
+		double _az;
+		double _gx;
+		double _gy;
+		double _gz;
 };
 
 class MPU_6050
