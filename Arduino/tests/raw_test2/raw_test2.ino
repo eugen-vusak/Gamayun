@@ -28,7 +28,7 @@ void setup() {
 
 void loop() {
   Data data = mpu.measure();
-  //Serial.println(data.sub(stableStateData).toString());
+  Serial.println(data.sub(stableStateData).toString());
   delay(8);
 }
 

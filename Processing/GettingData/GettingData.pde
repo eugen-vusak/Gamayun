@@ -1,71 +1,169 @@
 import processing.serial.*;
+import java.io.FileWriter;
+import java.util.Arrays;
+import java.lang.*;
 
-  int bgcolor;           // Background color
-  int fgcolor;           // Fill color
-  Serial myPort;                       // The serial port
-  int[] serialInArray = new int[3];    // Where we'll put what we receive
-  int serialCount = 0;                 // A count of how many bytes we receive
-  int xpos, ypos;                // Starting position of the ball
-  boolean firstContact = false;        // Whether we've heard from the microcontroller
 
-  void setup() {
-    size(256, 256);  // Stage size
-    noStroke();      // No border on the next thing drawn
+Serial myPort;  //port on which is arduino
+FileWriter outWriter = null; //fileWriter for output file
 
-    // Set the starting position of the ball (middle of the stage)
-    xpos = width / 2;
-    ypos = height / 2;
+int gesture_counter = 0;
 
-    // Print a list of the serial ports for debugging purposes
-    // if using Processing 2.1 or later, use Serial.printArray()
-    println(Serial.list());
+//booleans for connection
+boolean dataAhead = false; 
+boolean outputAhead = false;
+int data_cnt = 0;
+int output_cnt = 0;
 
-    // I know that the first port in the serial list on my Mac is always my FTDI
-    // adaptor, so I open Serial.list()[0].
-    // On Windows machines, this generally opens COM1.
-    // Open whatever port is the one you're using.
+//rectangle used to output message
+int message_rect_height = 0;
+boolean message_available = false;
+boolean error_happened = false;
+String output_string = "";
+
+void setup() {
+  size(600, 400);
+  frameRate(240);
+  try {
+    //println(Serial.list()[0]);
     String portName = Serial.list()[0];
     myPort = new Serial(this, portName, 115200);
+    myPort.bufferUntil('\n');
+    println("connected to " + portName);
+    myPort.clear();
+    //setMessage("connected to" + portName, false);
+  }
+  catch(RuntimeException e) {
+    e.printStackTrace();
+    //setMessage(e.getMessage(),true);
   }
 
-  void draw() {
-    background(bgcolor);
-    fill(fgcolor);
-    // Draw the shape
-    ellipse(xpos, ypos, 20, 20);
+  String fileName = "/home/euzenmendenzien/Documents/FER/PPP/Data/ZaSlike/noisy_data.csv";
+  try {
+    outWriter = new FileWriter(fileName, false);
+  }
+  catch(IOException e) {
+    println("ERROR unable to open file");
+    e.printStackTrace();
+  }
+}
+
+
+void draw() {
+  background(#373737);
+  /*if(message_available){
+   output_message();
+   }*/
+}
+
+void stop() {
+  try {
+    outWriter.close();
+  }
+  catch(IOException e) {
+    error_happened = !error_happened;
+    message_rect_height = 0;
+    println("ERROR: unable to close file");
+    e.printStackTrace();
+  }
+}
+
+void keyPressed() {
+  myPort.write(key);
+}
+
+void serialEvent(Serial myPort) {
+
+  //get string from serial port
+  String input = myPort.readStringUntil('\n');
+  input = trim(input);
+  println(input);
+
+  if ("Done".equals(input)) {    
+    outputAhead = false;
+    appendToFile("\n", outWriter);
+    println(data_cnt);
+    print(output_cnt);
+    print(++gesture_counter);
+    return;
   }
 
-  void serialEvent(Serial myPort) {
-    // read a byte from the serial port:
-    int inByte = myPort.read();
-    // if this is the first byte received, and it's an A, clear the serial
-    // buffer and note that you've had first contact from the microcontroller.
-    // Otherwise, add the incoming byte to the array:
-    if (firstContact == false) {
-      if (inByte == 'A') {
-        myPort.clear();          // clear the serial port buffer
-        firstContact = true;     // you've had first contact from the microcontroller
-        myPort.write('A');       // ask for more
+  if ("Data".equals(input)) {
+    dataAhead = true;
+    data_cnt = 0;
+    return;
+  }
+
+  if ("Output".equals(input)) {
+    dataAhead = false;
+    outputAhead = true;
+    output_cnt = 0;
+    return;
+  }
+
+  if (dataAhead) {
+    try {
+      for (String data : input.split(",")) {
+        println(Float.parseFloat(data));
+        data_cnt++;
       }
     }
-    else {
-      // Add the latest byte from the serial port to array:
-      serialInArray[serialCount] = inByte;
-      serialCount++;
+    catch(NumberFormatException e) {
+      println(e);
+    }   
+    appendToFile(input + ",", outWriter);
+    return;
+  }  
 
-      // If we have 3 bytes:
-      if (serialCount > 2 ) {
-        xpos = serialInArray[0];
-        ypos = serialInArray[1];
-        fgcolor = serialInArray[2];
-
-        // print the values (for debugging purposes only):
-        println(xpos + "\t" + ypos + "\t" + fgcolor);
-
-        // Send a capital A to request new sensor readings:
-        myPort.write('A');
-        // Reset serialCount:
-        serialCount = 0;
+  if (outputAhead) {
+    try {
+      for (String data : input.split(",")) {
+        println(Float.parseFloat(data));
+        output_cnt++;
       }
     }
+    catch(NumberFormatException e) {
+      println(e);
+    }   
+    appendToFile(input, outWriter);
+    return;
   }
+}
+
+void appendToFile(String string, FileWriter fw) {
+  try {
+    fw.write(string);
+    fw.flush();
+  }
+  catch(IOException e) {
+    println("ERROR: Unable to write to file");
+  }
+} 
+/*
+void setMessage(String message, boolean isError){
+ message_rect_height = 0;
+ message_available = true;
+ error_happened = isError;
+ output_string = message;
+ }
+ 
+ void output_message(){
+ if(error_happened){
+ fill(#F44336);
+ }
+ else{
+ fill(#8BC34A);
+ }
+ noStroke();
+ if(message_rect_height < 40){
+ message_rect_height+=4;
+ }
+ rect(0,0,displayWidth, message_rect_height);
+ if(message_rect_height == 40){
+ //textSize(18);
+ textFont(createFont("Roboto",16, true));
+ textAlign(CENTER);
+ fill(255,255,255,255);
+ text(output_string,300,25 );
+ }
+ }*/
